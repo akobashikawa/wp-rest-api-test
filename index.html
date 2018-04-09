@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>WP REST API Test</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <style>
+        .request {
+            background-color: #efe;
+        }
+
+        .response {
+            background-color: #eff;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="app">
+        <div class="row">
+            <div class="col-md-12">
+                <h1><a href="./">WP REST API Test</a></h1>
+
+                <div class="settings">
+                    <form class="form">
+                        <label for="server-url">Server Url</label>
+                        <input type="text" class="form-control" id="server-url" placeholder="Server Url" v-model="serverUrl">
+                    </form>
+                </div>
+
+                <div class="service login">
+                    <h2>Login</h2>
+                    <form class="form">
+                        <p>
+                            <label for="username">Username</label>
+                            <input type="text" class="form-control" id="username" placeholder="Username" v-model="username">
+                        </p>
+                        <p>
+                            <label for="password">Password</label>
+                            <input type="text" class="form-control" id="password" placeholder="Password" v-model="password">
+                        </p>
+                        <p>
+                            <button type="button" class="btn btn-primary" v-on:click="login">Login</button>
+                        </p>
+                    </form>
+                    <pre class="request" ref="loginRequest"></pre>
+                    <pre class="response" ref="loginResponse"></pre>
+                </div>
+
+                <div class="service validate">
+                    <h2>Validate</h2>
+
+                    <p>
+                        <input type="text" class="form-control" placeholder="Authorization" v-model="authorization">
+                    </p>
+
+                    <form class="form">
+                        <p>
+                            <button type="button" class="btn btn-primary" v-on:click="validate">Validate</button>
+                        </p>
+                    </form>
+
+                    <pre class="request" ref="validateRequest"></pre>
+                    <pre class="response" ref="validateResponse"></pre>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/vue"></script>
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                serverUrl: 'http://rulo.me/rulokoba/',
+                username: '',
+                password: '',
+                authorization: ''
+            },
+            methods: {
+                showDataIn: function (refname, ...data) {
+                    let isError = data[0].stack && data[0].message;
+                    if (isError) {
+                        this.$refs[refname].innerText = data[0];
+                    } else {
+                        this.$refs[refname].innerText = data
+                            .map(x => x ? JSON.stringify(x, null, 2) : '')
+                            .join("\n");
+                    }
+                },
+                parseJwt: function (token) { 
+                    var base64Url = token.split('.')[1]; 
+                    var base64 = base64Url.replace('-', '+').replace('_', '/');
+                    return JSON.parse(window.atob(base64)); 
+                },
+                login: function () {
+                    const username = this.username;
+                    const password = this.password;
+
+                    const url = `${this.serverUrl}/wp-json/jwt-auth/v1/token`;
+
+                    const headers = {
+                        Accept: "application/json, text/plain, */*",
+                        "Content-Type": "application/json"
+                    };
+
+                    const data = { username, password };
+                    const method = "POST";
+
+                    this.showDataIn("loginRequest", { method, url, headers, body: data });
+
+                    return fetch(url, {
+                        headers: new Headers(headers),
+                        method,
+                        body: JSON.stringify(data)
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            this.authorization = data.token;
+                            const parsed = this.parseJwt(data.token);
+                            this.showDataIn('loginResponse', data, parsed);
+                        });
+
+                },
+                validate: function () {
+                    const authorization = this.authorization;
+
+                    const url = `${this.serverUrl}/wp-json/jwt-auth/v1/token/validate`;
+
+                    const headers = {
+                        Accept: "application/json, text/plain, */*",
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${authorization}`
+                    };
+
+                    const data = {};
+                    const method = "POST";
+
+                    this.showDataIn("validateRequest", { method, url, headers, body: data });
+
+                    return fetch(url, {
+                        headers: new Headers(headers),
+                        method,
+                        body: JSON.stringify(data)
+                    })
+                        .then(res => res.json())
+                        .then(data => {
+                            this.showDataIn('validateResponse', data);
+                        });
+
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
